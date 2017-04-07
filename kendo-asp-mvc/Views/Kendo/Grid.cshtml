@@ -1,0 +1,44 @@
+﻿
+@{
+    ViewBag.Title = "Grid";
+}
+
+<div id="example">
+    <div id="grid"></div>
+</div>
+
+@section scripts {
+
+    <script>
+        $(document).ready(function () {
+            $("#grid").kendoGrid({
+                dataSource: {
+                    data: [
+                        { "id": 1, "gender": "Male", "name": "Matthew Hall", "email": "mhall0@dell.com", "country": "Brazil" },
+                        { "id": 2, "gender": "Male", "name": "Keith Black", "email": "kblack1@liveinternet.ru", "country": "Cuba" },
+                        { "id": 3, "gender": "Female", "name": "Alice Sullivan", "email": "asullivan2@netscape.com", "country": "Bangladesh" },
+                        { "id": 4, "gender": "Female", "name": "Barbara Hansen", "email": "bhansen3@desdev.cn", "country": "China" },
+                        { "id": 5, "gender": "Female", "name": "Frances Palmer", "email": "fpalmer4@independent.co.uk", "country": "Uzbekistan" },
+                        { "id": 6, "gender": "Male", "name": "Harold Ortiz", "email": "hortiz5@thetimes.co.uk", "country": "Portugal" },
+                        { "id": 7, "gender": "Female", "name": "Mildred Stewart", "email": "mstewart6@telegraph.co.uk", "country": "Japan" },
+                        { "id": 8, "gender": "Female", "name": "Jessica Johnson", "email": "jjohnson7@samsung.com", "country": "Indonesia" },
+                        { "id": 9, "gender": "Female", "name": "Anne Duncan", "email": "aduncan8@sphinn.com", "country": "China" }]
+                },
+                height: 550,
+                groupable: true,
+                sortable: true,
+                pageable: {
+                    refresh: true,
+                    pageSizes: true,
+                    buttonCount: 5
+                },
+                columns: [
+                    { field: "id", title: "Id" },
+                    { field: "name", title: "Full Name", width: 240 },
+                    { field: "email", title: "Email" },
+                    { field: "country", title: "Country", width: 150 }]
+            });
+        });
+    </script>
+
+}
