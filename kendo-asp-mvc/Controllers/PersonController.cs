@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Web;
 using System.Web.Mvc;
 
@@ -28,29 +29,65 @@ namespace kendo_asp_mvc.Controllers
         [HttpGet]
         public JsonResult List()
         {
-            return this.Json(models, JsonRequestBehavior.AllowGet);
+            var response = new ApiResponse(models);
+
+            return this.Json(response, JsonRequestBehavior.AllowGet);
+        }
+
+        public class ApiResponse
+        {
+            public bool Success
+            {
+                get;
+                private set;
+            }
+
+            public object Errors
+            {
+                get;
+                private set;
+            }
+
+            public object Result
+            {
+                get;
+                private set;
+            }
+            public ApiResponse(object result, object errors = null)
+            {
+                this.Success = errors == null;
+
+                this.Result = result;
+                this.Errors = errors;
+            }
         }
 
         [Route("create")]
         [HttpPost]
         public JsonResult Create(PersonModel model)
         {
-            model.Id = models.Count;
-
+            
             if(this.ModelState.IsValid)
             {
+                model.Id = models.Count;
                 models.Add(model);
             }
 
-            var errors = this.ModelState.ToDictionary(k => k.Key, k => k.Value.Errors.Select(e => e.ErrorMessage));
+            //var errors = this.ModelState.ToDictionary(k => k.Key, k => k.Value.Errors.Select(e => e.ErrorMessage));
+            var errors = this.ModelState
+                .Where(kvp => kvp.Value.Errors.Any())
+                .Select(kvp => new {
+                field = kvp.Key,
+                error = kvp.Value.Errors.Select(e => e.ErrorMessage).FirstOrDefault()
+            }).ToList();
 
-            var response = new
-            {
-                success = this.ModelState.IsValid,
-                model = model,
-                errors = errors
-            };
+            var response = new ApiResponse(model, errors.Count > 0 ? errors : null);
 
+            //    this.ModelState.Keys.Select(key => new { field = key, error = this.ModelState[key].Errors.FirstOrDefault() })
+            // Must decide how errors are returned?
+            // 200 status code or 400?
+            // Kendo is configurable and can detects errors from response;
+            //Response.StatusCode = (int)HttpStatusCode.BadRequest;
             return this.Json(response);
         }
 
@@ -65,7 +102,9 @@ namespace kendo_asp_mvc.Controllers
                 models.Remove(existing);
             }
 
-            return this.Json(existing);
+            var response = new ApiResponse(existing);
+
+            return this.Json(response);
         }
 
         [Route("update")]
@@ -74,27 +113,26 @@ namespace kendo_asp_mvc.Controllers
         {
             var existing = models.FirstOrDefault(m => m.Id == model.Id);
 
-            if (existing != null)
+            if (existing == null)
+            {
+                return null;
+            }
+
+            if (this.ModelState.IsValid)
             {
                 models.Remove(existing);
+                models.Add(model);
             }
 
-            // It is a bit difficult to track which items have errors
-            models.Add(model);
+            //var errors = this.ModelState.ToDictionary(k => k.Key, k => k.Value.Errors.Select(e => e.ErrorMessage));
+            var errors = this.ModelState
+                .Where(kvp => kvp.Value.Errors.Any())
+                .Select(kvp => new {
+                    field = kvp.Key,
+                    error = kvp.Value.Errors.Select(e => e.ErrorMessage).FirstOrDefault()
+                }).ToList();
 
-            if(model.Country == "BG2")
-            {
-                throw new Exception("sdfsdfds");
-            }
-
-            var errors = this.ModelState.ToDictionary(k => k.Key, k => k.Value.Errors.Select(e => e.ErrorMessage));
-
-            var response = new
-            {
-                success = false,
-                model = model,
-                errors = errors
-            };
+            var response = new ApiResponse(model, errors.Count > 0 ? errors : null);
 
             return this.Json(response);
         }

@@ -28,7 +28,13 @@ namespace kendo_asp_mvc.Models
             set;
         }
 
-        public int Id
+        public int? Id
+        {
+            get;
+            set;
+        }
+
+        public string uiid
         {
             get;
             set;

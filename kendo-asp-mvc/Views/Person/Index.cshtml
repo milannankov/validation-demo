@@ -67,7 +67,7 @@
             else {
                 enableInlineEdit();
             }
-           
+
         });
 
         $(document).ready(function () {
@@ -99,35 +99,103 @@
                     model: {
                         id: "Id",
                         fields: {
+                            // validation should be turned off
                             Id: { editable: false, nullable: false },
-                            Name: { validation: { required: true } },
+                            Name: { validation: { required: false } },
                             Country: { type: "string", validation: { required: false } },
-                            Email: { type: "string", validation: { required: false } }
+                            Email: { type: "string", validation: { required: false } },
+                            uiid: { editable: false },
                         }
-                    }
+                    },
+                    data: function (response) {
+                        return response.Result;
+                    },
+                    errors: function (response) {
+                        return response.Errors;
+                    },
                 },
-                error: function (e) {
-
-                    if (currentEditItem === null) {
-                        return;
-                    }
-
-                    var row = kendoGrid.tbody.find("tr[data-uid='" + currentEditItem.uid + "']");
-                    row.css({ 'background-color': 'red'});
-
-                },
-                requestStart: function (e) {
-                    console.log('start');
-                },
-                requestEnd: function (e) {
-                    console.log('end');
-                }
-                
+                requestEnd: onRequestEnd,
             });
+
+            function onRequestEnd(e) {
+
+                if (e.type === 'read') {
+                    errorStates = {};
+                    initUiids(e.response.Result);
+                } else {
+                    updateErrorState(e.response.Result.uiid, e.response.Errors);
+                    updateGridRowStates();
+                }
+            }
+
+            function initUiids(results) {
+                $.each(results, function (index, item) {
+                    item.uiid = kendo.guid();
+                });
+            };
+
+            var errorStates = {};
+
+            function handleResponseSuccessForItem(uiid) {
+
+            }
+
+            function updateErrorState(uiid, errors) {
+
+                var hasErrors = errors == null ? false : errors.length > 0;
+
+                if (hasErrors) {
+                    errorStates[uiid] = errors;
+                }
+                else {
+                    errorStates[uiid] = null;
+                }
+            }
+
+            function updateGridRowStates() {
+
+                jQuery.each(errorStates, function (uiid, errors) {
+
+                    if (errors !== null) {
+                        updateRowState(uiid, errors);
+                    }
+
+                });
+            }
+
+            function getfieldCellIndices() {
+
+                var fieldCellIndices = {};
+
+                for (var i = 0; i < kendoGrid.columns.length; i++) {
+                    if (kendoGrid.columns[i].field) {
+                        fieldCellIndices[kendoGrid.columns[i].field] = i;
+                    }
+                }
+
+                return fieldCellIndices;
+            };
+
+            function updateRowState(uiid, errors) {
+
+                var fieldCellIndices = getfieldCellIndices(), dataSource = kendoGrid.dataSource;
+
+                for (var i = 0; i < errors.length; i++) {
+
+                    var error = errors[i],
+                        item = findItemByUiid(uiid),
+                        row = kendoGrid.table.find("tr[data-uid='" + item.uid + "']");
+
+                    var container = row.find("td:eq(" + fieldCellIndices[error.field] + ")");
+                    container.addClass("cell-invalid");
+                    container.attr('data-error', error.error);
+                }
+            }
 
             kendoGrid = $("#grid").kendoGrid({
                 dataSource: dataSource,
                 dataBound: onDataBound,
+                save: onRowSave,
                 autoBind: true,
                 height: 550,
                 groupable: true,
@@ -140,27 +208,36 @@
                 },
                 toolbar: ["create"],
                 columns: [
+                    // we need a template for each cell
                     { field: "Id", title: "Id" },
                     {
-                        field: "Name", title: "Full Name", width: 240, template: "#=Name#<span data-valmsg-for='Name' ></span><span class='validation-arrow'></span>",
+                        field: "Name", title: "Full Name", width: 240,
+                        template: "#= (Name == null) ? ' ' : Name #</span><span class='validation-arrow'></span>",
                     },
                     {
                         field: "Email", title: "Email",
+                        template: "#=Email#</span><span class='validation-arrow'></span>",
                     },
-                    { field: "Country", title: "Country", width: 150 },
+                    {
+                        field: "Country", title: "Country", width: 150,
+                        template: "#= (Country == null) ? ' ' : Country #</span><span class='validation-arrow'></span>"
+                    },
                     { command: ["destroy"], title: "&nbsp;", width: "250px" }
                 ]
-            }).data("kendoGrid");;
+            }).addClass('k-dirty-clear').data("kendoGrid");;
 
             $("#grid").kendoTooltip({
                 filter: "td .validation-arrow",
                 position: "right",
+                callout:false,
+                show: function (e) {
+                    e.sender.element.addClass("validation-tooltip");
+                },
                 content: function (e) {
-                    var dataItem = kendoGrid.dataItem(e.target.closest("tr"));
-                    var content = dataItem.Text;
-                    return "Sample error";
+                    var content = e.target.closest("td").attr('data-error');
+                    return content;
                 }
-            }).data("kendoTooltip");
+            });
 
             kendoGrid.tbody.on('keydown', function (e) {
 
@@ -173,58 +250,21 @@
                 var hasChanges = kendoGrid.dataSource.hasChanges();
 
                 if (isTabOnLastCellEnabled() && isLastColumn && isEditing() && hasChanges) {
-                    kendoGrid.saveRow();
 
                     setTimeout(function () {
-                        kendoGrid.saveRow();
-                        $(kendoGrid.table).focus();
-                    }, 100);
-                }
-
-                if (isTabOnLastRowEnabled() && isLastColumn && isLastRow && isEditing()) {
-                    kendoGrid.saveRow();
-                    kendoGrid.addRow();
-
-                    setTimeout(function () {
-                        kendoGrid.table.focus();
-                    }, 100);
+                        kendoGrid.saveChanges();
+                    }, 10);
                 }
             });
 
             function onDataBound(e) {
                 prepareCells(kendoGrid.table);
+                updateGridRowStates();
             }
 
             function prepareCells(container) {
-                container.find('td').css({ position: 'relative' });
-            }
-
-            function emailEditor(container, options) {
-                var attrubutes = {
-                    'data-bind': 'value:' + options.field,
-                    'name': options.field
-                };
-
-                $('<input type="text" class="k-input k-textbox" required/>')
-                    .attr(attrubutes)
-                    .appendTo(container);
-
-                $('<span data-valmsg-for="Email"></span>').appendTo(container);
-                $('<div class="validator-msg"><span data-for="Email" class="k-invalid-msg k-custom-msg"></div>').appendTo(container);
-            }
-
-            function nameEditor(container, options) {
-                var attrubutes = {
-                    'data-bind': 'value:' + options.field,
-                    'name': options.field
-                };
-
-                $('<input type="text" class="k-input k-textbox" required/>')
-                    .attr(attrubutes)
-                    .appendTo(container);
-
-                $('<span data-valmsg-for="Name"></span>').appendTo(container);
-                $('<div class="validator-msg"><span data-for="Name" class="k-invalid-msg k-custom-msg"></div>').appendTo(container);
+                container.find('td')
+                    .css({ position: 'relative' })
             }
 
             function isOnLastColumn(target) {
@@ -254,29 +294,57 @@
                 return $('#toggleTabOnLastRow').is(':checked');
             }
 
+            function onRowSave(e) {
+                console.log('save');
+                prepareCells(e.container);
+            };
+
             function onEdit(e) {
 
                 // do not allow more that 5 rows
-                if (e.model.isNew() && e.sender.dataSource.total() > 5) {
+                if (e.model.isNew() && e.sender.dataSource.view().length > 5) {
                     e.sender.cancelRow();
                     alert('Cannot have more than 5 rows');
                 }
 
                 var model = e.model;
-                var row = $(element).closest('tr');
+                var row = $(e.container).closest('tr');
                 var dataItem = getDataItem(e.container);
 
-                if (model.isNew()) {
+                if (model.isNew() && (model.uiid === undefined || model.uiid === "")) {
                     prepareCells(row);
+                    model.uiid = kendo.guid();
                 }
 
-                //if (dataItem !== currentEditItem && currentEditItem !== null) {
+                // Glitches with that
+                //if (dataItem !== currentEditItem && currentEditItem != null) {
+                //    currentEditItem = dataItem;
                 //    kendoGrid.saveRow();
+
+                //    setTimeout(function () {
+                //        var row = kendoGrid.table.find("tr[data-uid='" + model.uid + "']");
+                //        var cellIndex = e.container.index();
+                //        var cell = row.find('td:eq(' + cellIndex +')');
+                //        kendoGrid.editCell(cell);
+                //    }, 50);
+                    
                 //}
                 //else {
                 //    currentEditItem = dataItem;
                 //}
             }
+
+            function findItemByUiid(uiid) {
+                var idx, length, data = kendoGrid.dataSource.data();
+                if (!data) {
+                    return;
+                }
+                for (idx = 0, length = data.length; idx < length; idx++) {
+                    if (data[idx].uiid == uiid) {
+                        return data[idx];
+                    }
+                }
+            };
 
             function getDataItem(element) {
                 var row = $(element).closest('tr');
@@ -286,3 +354,4 @@
     </script>
 
 }
+
