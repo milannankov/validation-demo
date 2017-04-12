@@ -3,6 +3,35 @@
     ViewBag.Title = "Grid";
 }
 
+
+<div id="commands">
+
+    <div class="form-group">
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="toggleClickToEdit" checked> Click to edit
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="toggleTabOnLastCell" checked> Tab on the last cell to commit
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" id="toggleTabOnLastRow" checked> Tab on the last row to add new row
+            </label>
+        </div>
+    </div>
+
+</div>
+
 <div id="example">
     <div id="grid"></div>
 </div>
@@ -10,6 +39,37 @@
 @section scripts {
 
     <script>
+
+        var currentEditItem = null;
+        var kendoGrid = null;
+
+        function enableInCellEdit() {
+            var options = kendoGrid.getOptions();
+            options.editable.mode = "incell";
+            options.columns[options.columns.length - 1] = { command: ["destroy"], title: "&nbsp;", width: "250px" };
+
+            kendoGrid.setOptions(options);
+        };
+
+        function enableInlineEdit() {
+            var options = kendoGrid.getOptions();
+            options.editable.mode = "inline";
+            options.columns[options.columns.length - 1] = { command: ["edit", "destroy"], title: "&nbsp;", width: "250px" };
+
+            kendoGrid.setOptions(options);
+        };
+
+        $("#toggleClickToEdit").change(function () {
+
+            if (this.checked) {
+                enableInCellEdit();
+            }
+            else {
+                enableInlineEdit();
+            }
+           
+        });
+
         $(document).ready(function () {
 
             var dataSource = new kendo.data.DataSource({
@@ -45,11 +105,29 @@
                             Email: { type: "string", validation: { required: false } }
                         }
                     }
+                },
+                error: function (e) {
+
+                    if (currentEditItem === null) {
+                        return;
+                    }
+
+                    var row = kendoGrid.tbody.find("tr[data-uid='" + currentEditItem.uid + "']");
+                    row.css({ 'background-color': 'red'});
+
+                },
+                requestStart: function (e) {
+                    console.log('start');
+                },
+                requestEnd: function (e) {
+                    console.log('end');
                 }
+                
             });
 
-            var grid = $("#grid").kendoGrid({
+            kendoGrid = $("#grid").kendoGrid({
                 dataSource: dataSource,
+                dataBound: onDataBound,
                 autoBind: true,
                 height: 550,
                 groupable: true,
@@ -58,33 +136,151 @@
                 edit: onEdit,
                 editable: {
                     createAt: "bottom",
-                    mode: "inline"
-                }, 
+                    mode: "incell"
+                },
                 toolbar: ["create"],
                 columns: [
                     { field: "Id", title: "Id" },
-                    { field: "Name", title: "Full Name", width: 240 },
-                    { field: "Email", title: "Email" },
+                    {
+                        field: "Name", title: "Full Name", width: 240, template: "#=Name#<span data-valmsg-for='Name' ></span><span class='validation-arrow'></span>",
+                    },
+                    {
+                        field: "Email", title: "Email",
+                    },
                     { field: "Country", title: "Country", width: 150 },
-                    { command: ["edit", "destroy"], title: "&nbsp;", width: "250px" }
+                    { command: ["destroy"], title: "&nbsp;", width: "250px" }
                 ]
-            }).data("kendoGrid"); ;
+            }).data("kendoGrid");;
 
-            grid.tbody.on('keydown', function (e) {
-
-                // add new row on tab on the last row
-                if ($(e.target).closest('td').is(':last-child') && $(e.target).closest('tr').is(':last-child')) {
-                    grid.addRow();
+            $("#grid").kendoTooltip({
+                filter: "td .validation-arrow",
+                position: "right",
+                content: function (e) {
+                    var dataItem = kendoGrid.dataItem(e.target.closest("tr"));
+                    var content = dataItem.Text;
+                    return "Sample error";
                 }
-            })
+            }).data("kendoTooltip");
+
+            kendoGrid.tbody.on('keydown', function (e) {
+
+                if (e.originalEvent.keyCode != 9) {
+                    return;
+                }
+
+                var isLastColumn = isOnLastColumn(e.target);
+                var isLastRow = isOnLastRow(e.target);
+                var hasChanges = kendoGrid.dataSource.hasChanges();
+
+                if (isTabOnLastCellEnabled() && isLastColumn && isEditing() && hasChanges) {
+                    kendoGrid.saveRow();
+
+                    setTimeout(function () {
+                        kendoGrid.saveRow();
+                        $(kendoGrid.table).focus();
+                    }, 100);
+                }
+
+                if (isTabOnLastRowEnabled() && isLastColumn && isLastRow && isEditing()) {
+                    kendoGrid.saveRow();
+                    kendoGrid.addRow();
+
+                    setTimeout(function () {
+                        kendoGrid.table.focus();
+                    }, 100);
+                }
+            });
+
+            function onDataBound(e) {
+                prepareCells(kendoGrid.table);
+            }
+
+            function prepareCells(container) {
+                container.find('td').css({ position: 'relative' });
+            }
+
+            function emailEditor(container, options) {
+                var attrubutes = {
+                    'data-bind': 'value:' + options.field,
+                    'name': options.field
+                };
+
+                $('<input type="text" class="k-input k-textbox" required/>')
+                    .attr(attrubutes)
+                    .appendTo(container);
+
+                $('<span data-valmsg-for="Email"></span>').appendTo(container);
+                $('<div class="validator-msg"><span data-for="Email" class="k-invalid-msg k-custom-msg"></div>').appendTo(container);
+            }
+
+            function nameEditor(container, options) {
+                var attrubutes = {
+                    'data-bind': 'value:' + options.field,
+                    'name': options.field
+                };
+
+                $('<input type="text" class="k-input k-textbox" required/>')
+                    .attr(attrubutes)
+                    .appendTo(container);
+
+                $('<span data-valmsg-for="Name"></span>').appendTo(container);
+                $('<div class="validator-msg"><span data-for="Name" class="k-invalid-msg k-custom-msg"></div>').appendTo(container);
+            }
+
+            function isOnLastColumn(target) {
+                var lastDataColumnIndex = kendoGrid.columns.length - 2;
+                var currentColumnIndex = $(target).closest('td').index();
+                var isLastColumn = lastDataColumnIndex == currentColumnIndex;
+
+                return isLastColumn;
+            }
+
+            function isOnLastRow(target) {
+                var currentRowIndex = $(target).closest('tr').index();
+                var lastRowIndex = kendoGrid.dataSource.total() - 1;
+
+                return currentRowIndex === lastRowIndex;
+            }
+
+            function isEditing() {
+                return $(kendoGrid.table).find('.k-grid-edit-row').length > 0;
+            }
+
+            function isTabOnLastCellEnabled() {
+                return $('#toggleTabOnLastCell').is(':checked');
+            }
+
+            function isTabOnLastRowEnabled() {
+                return $('#toggleTabOnLastRow').is(':checked');
+            }
 
             function onEdit(e) {
 
                 // do not allow more that 5 rows
                 if (e.model.isNew() && e.sender.dataSource.total() > 5) {
                     e.sender.cancelRow();
+                    alert('Cannot have more than 5 rows');
                 }
 
+                var model = e.model;
+                var row = $(element).closest('tr');
+                var dataItem = getDataItem(e.container);
+
+                if (model.isNew()) {
+                    prepareCells(row);
+                }
+
+                //if (dataItem !== currentEditItem && currentEditItem !== null) {
+                //    kendoGrid.saveRow();
+                //}
+                //else {
+                //    currentEditItem = dataItem;
+                //}
+            }
+
+            function getDataItem(element) {
+                var row = $(element).closest('tr');
+                return kendoGrid.dataItem(row)
             }
         });
     </script>

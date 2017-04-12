@@ -22,3 +22,44 @@ select,
 textarea {
     max-width: 280px;
 }
+
+
+/* override absolute positioning styles of the validator messages */
+.validator-msg,
+.validator-msg .k-tooltip {
+    position: static;
+    display: block;
+    background-color: transparent !important;
+    border: none !important;
+    text-align: left;
+    padding: 0;
+    margin: 0;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    color: red !important;
+}
+
+    /* hide validator tooltip callouts */
+    .validator-msg .k-tooltip .k-callout, .k-i-warning {
+        display: none;
+    }
+
+    .validator-msg .k-i-warning {
+        display: none;
+    }
+
+
+.validation-arrow {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 6px;
+    border-color: red red transparent transparent;
+    padding: 0;
+    overflow: hidden;
+    vertical-align: top;
+}
+

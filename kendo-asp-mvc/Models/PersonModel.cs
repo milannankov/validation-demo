@@ -21,13 +21,13 @@ namespace kendo_asp_mvc.Models
             set;
         }
 
+        [Required]
         public string Email
         {
             get;
             set;
         }
 
-        [Required]
         public int Id
         {
             get;

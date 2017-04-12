@@ -20,7 +20,8 @@ namespace kendo_asp_mvc
                         "~/Scripts/modernizr-*"));
 
             bundles.Add(new ScriptBundle("~/bundles/kendo").Include(
-                        "~/Scripts/kendo/kendo.all.min.js"));
+                        //"~/Scripts/kendo/kendo.all.min.js"));
+                        "~/Scripts/kendo/kendo.all.js"));
 
             bundles.Add(new ScriptBundle("~/bundles/bootstrap").Include(
                       "~/Scripts/bootstrap.js",

@@ -15,8 +15,8 @@ namespace kendo_asp_mvc.Controllers
         static PersonController()
         {
             models.Add(new PersonModel() { Country = "BG", Email = "e", Id = 0, Name = "n1" });
-            models.Add(new PersonModel() { Country = "BG", Email = "e", Id = 1, Name = "n2" });
-            models.Add(new PersonModel() { Country = "BG", Email = "e", Id = 2, Name = "n3" });
+            //models.Add(new PersonModel() { Country = "BG", Email = "e", Id = 1, Name = "n2" });
+            //models.Add(new PersonModel() { Country = "BG", Email = "e", Id = 2, Name = "n3" });
         }
 
         public ActionResult Index()
@@ -36,9 +36,22 @@ namespace kendo_asp_mvc.Controllers
         public JsonResult Create(PersonModel model)
         {
             model.Id = models.Count;
-            models.Add(model);
 
-            return this.Json(model);
+            if(this.ModelState.IsValid)
+            {
+                models.Add(model);
+            }
+
+            var errors = this.ModelState.ToDictionary(k => k.Key, k => k.Value.Errors.Select(e => e.ErrorMessage));
+
+            var response = new
+            {
+                success = this.ModelState.IsValid,
+                model = model,
+                errors = errors
+            };
+
+            return this.Json(response);
         }
 
         [Route("destroy")]
@@ -66,9 +79,24 @@ namespace kendo_asp_mvc.Controllers
                 models.Remove(existing);
             }
 
+            // It is a bit difficult to track which items have errors
             models.Add(model);
 
-            return this.Json(existing);
+            if(model.Country == "BG2")
+            {
+                throw new Exception("sdfsdfds");
+            }
+
+            var errors = this.ModelState.ToDictionary(k => k.Key, k => k.Value.Errors.Select(e => e.ErrorMessage));
+
+            var response = new
+            {
+                success = false,
+                model = model,
+                errors = errors
+            };
+
+            return this.Json(response);
         }
     }
 }
