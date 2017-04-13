@@ -41,6 +41,7 @@
     <script>
 
         var currentEditItem = null;
+        var currentEditItemUpdated = false;
         var kendoGrid = null;
         var errorStates = {};
 
@@ -115,8 +116,16 @@
                         return response.Errors;
                     },
                 },
+                change: onItemChange,
                 requestEnd: onRequestEnd,
             });
+
+            function onItemChange(e) {
+
+                if (currentEditItem !== null && e.action == 'itemchange') {
+                    currentEditItemUpdated = true;
+                }
+            };
 
             function onRequestEnd(e) {
 
@@ -127,11 +136,29 @@
                 if (e.type === 'read') {
                     errorStates = {};
                     initUiids(e.response.Result);
+                    //disableGridRefreshes();
                 } else {
                     updateErrorState(e.response.Result.uiid, e.response.Errors);
+                    clearValidationUi();
                     updateGridRowStates();
                 }
             }
+
+            function clearValidationUi() {
+                var cells = kendoGrid.table.find("tr td")
+                    .removeClass('cell-invalid')
+                    .removeAttr('data-error');
+            };
+
+            var gridShoulSkipRefresh = false;
+
+            function disableGridRefreshes() {
+                gridShoulSkipRefresh = true;
+            };
+
+            function enableGridRefreshes() {
+                gridShoulSkipRefresh = false
+            };
 
             function initUiids(results) {
                 $.each(results, function (index, item) {
@@ -149,7 +176,7 @@
                 else {
                     errorStates[uiid] = null;
                 }
-            }
+            };
 
             function updateGridRowStates() {
 
@@ -202,15 +229,13 @@
                 groupable: true,
                 sortable: true,
                 navigatable: true,
+                remove: onRemove,
+                dataBinding: onDataBinding,
                 edit: onEdit,
+                cancel: onCancel,
                 editable: {
                     createAt: "bottom",
                     mode: "incell"
-                },
-                remove: function (e) {
-                    setTimeout(function () {
-                        e.sender.dataSource.sync()
-                    }, 0);
                 },
                 toolbar: ["create", "save", "cancel"],
                 columns: [
@@ -230,7 +255,32 @@
                     },
                     { command: ["destroy"], title: "&nbsp;", width: "250px" }
                 ]
-            }).addClass('k-dirty-clear').data("kendoGrid");;
+            }).addClass('k-dirty-clear').data("kendoGrid");
+
+            $('.k-grid-add').on('click', function () {
+                enableGridRefreshes();
+
+                // this bit repeats a lot - needs an abstraction
+                currentEditItem = null;
+                currentEditItemUpdated = false;
+            });
+
+            function onRemove(e) {
+                enableGridRefreshes();
+                currentEditItem = null;
+                currentEditItemUpdated = false;
+
+                setTimeout(function () {
+                    e.sender.dataSource.sync()
+                }, 0);
+            }
+
+            function onCancel(e) {
+                enableGridRefreshes();
+                currentEditItem = null;
+                currentEditItemUpdated = false;
+                console.log('cancel');
+            }
 
             $("#grid").kendoTooltip({
                 filter: "td .validation-arrow",
@@ -245,6 +295,15 @@
                 }
             });
 
+            function onDataBinding(e) {
+                console.log('dataBinding');
+
+                if (gridShoulSkipRefresh) {
+                    e.preventDefault();
+                    console.log('dataBinding skipped');
+                }
+            }
+
             kendoGrid.tbody.on('keydown', function (e) {
 
                 if (e.originalEvent.keyCode != 9) {
@@ -256,10 +315,7 @@
                 var hasChanges = kendoGrid.dataSource.hasChanges();
 
                 if (isTabOnLastCellEnabled() && isLastColumn && isEditing() && hasChanges) {
-
-                    setTimeout(function () {
-                        kendoGrid.saveChanges();
-                    }, 10);
+                    kendoGrid.saveChanges();
                 }
             });
 
@@ -316,6 +372,7 @@
                 var model = e.model;
                 var row = $(e.container).closest('tr');
                 var dataItem = getDataItem(e.container);
+                disableGridRefreshes();
 
                 if (model.isNew() && (model.uiid === undefined || model.uiid === "")) {
                     prepareCells(row);
@@ -323,21 +380,15 @@
                 }
 
                 // Glitches with that
-                //if (dataItem !== currentEditItem && currentEditItem != null) {
-                //    currentEditItem = dataItem;
-                //    kendoGrid.saveRow();
-
-                //    setTimeout(function () {
-                //        var row = kendoGrid.table.find("tr[data-uid='" + model.uid + "']");
-                //        var cellIndex = e.container.index();
-                //        var cell = row.find('td:eq(' + cellIndex +')');
-                //        kendoGrid.editCell(cell);
-                //    }, 50);
-
-                //}
-                //else {
-                //    currentEditItem = dataItem;
-                //}
+                if (dataItem !== currentEditItem && currentEditItem != null && currentEditItemUpdated) {
+                    currentEditItem = dataItem;
+                    currentEditItemUpdated = false;
+                    kendoGrid.saveChanges();
+                }
+                else {
+                    currentEditItem = dataItem;
+                    currentEditItemUpdated = false;
+                }
             }
 
             function findItemByUiid(uiid) {
