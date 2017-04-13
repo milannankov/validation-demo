@@ -12,12 +12,20 @@ namespace kendo_asp_mvc.Controllers
     public class PersonController : Controller
     {
         private static List<PersonModel> models = new List<PersonModel>();
+        private static int nextIndex = 1;
 
         static PersonController()
         {
             models.Add(new PersonModel() { Country = "BG", Email = "e", Id = 0, Name = "n1" });
             //models.Add(new PersonModel() { Country = "BG", Email = "e", Id = 1, Name = "n2" });
             //models.Add(new PersonModel() { Country = "BG", Email = "e", Id = 2, Name = "n3" });
+        }
+
+        public static int GetNextIndex()
+        {
+            nextIndex++;
+
+            return nextIndex;
         }
 
         public ActionResult Index()
@@ -66,10 +74,9 @@ namespace kendo_asp_mvc.Controllers
         [HttpPost]
         public JsonResult Create(PersonModel model)
         {
-            
             if(this.ModelState.IsValid)
             {
-                model.Id = models.Count;
+                model.Id = GetNextIndex();
                 models.Add(model);
             }
 
@@ -93,16 +100,16 @@ namespace kendo_asp_mvc.Controllers
 
         [Route("destroy")]
         [HttpPost]
-        public JsonResult Destroy(int id)
+        public JsonResult Destroy(PersonModel model)
         {
-            var existing = models.FirstOrDefault(m => m.Id == id);
+            var existing = models.FirstOrDefault(m => m.Id == model.Id);
 
             if(existing != null)
             {
                 models.Remove(existing);
             }
 
-            var response = new ApiResponse(existing);
+            var response = new ApiResponse(model);
 
             return this.Json(response);
         }

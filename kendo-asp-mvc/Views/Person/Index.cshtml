@@ -42,6 +42,7 @@
 
         var currentEditItem = null;
         var kendoGrid = null;
+        var errorStates = {};
 
         function enableInCellEdit() {
             var options = kendoGrid.getOptions();
@@ -119,6 +120,10 @@
 
             function onRequestEnd(e) {
 
+                if (e.response == null) {
+                    return;
+                }
+
                 if (e.type === 'read') {
                     errorStates = {};
                     initUiids(e.response.Result);
@@ -133,12 +138,6 @@
                     item.uiid = kendo.guid();
                 });
             };
-
-            var errorStates = {};
-
-            function handleResponseSuccessForItem(uiid) {
-
-            }
 
             function updateErrorState(uiid, errors) {
 
@@ -156,9 +155,7 @@
 
                 jQuery.each(errorStates, function (uiid, errors) {
 
-                    if (errors !== null) {
-                        updateRowState(uiid, errors);
-                    }
+                    if (errors !== null) { updateRowState(uiid, errors); }
 
                 });
             }
@@ -182,10 +179,14 @@
 
                 for (var i = 0; i < errors.length; i++) {
 
-                    var error = errors[i],
-                        item = findItemByUiid(uiid),
-                        row = kendoGrid.table.find("tr[data-uid='" + item.uid + "']");
+                    var error = errors[i];
+                    var item = findItemByUiid(uiid);
 
+                    if (item == null) {
+                        continue;
+                    }
+
+                    var row = kendoGrid.table.find("tr[data-uid='" + item.uid + "']");
                     var container = row.find("td:eq(" + fieldCellIndices[error.field] + ")");
                     container.addClass("cell-invalid");
                     container.attr('data-error', error.error);
@@ -206,7 +207,12 @@
                     createAt: "bottom",
                     mode: "incell"
                 },
-                toolbar: ["create"],
+                remove: function (e) {
+                    setTimeout(function () {
+                        e.sender.dataSource.sync()
+                    }, 0);
+                },
+                toolbar: ["create", "save", "cancel"],
                 columns: [
                     // we need a template for each cell
                     { field: "Id", title: "Id" },
@@ -229,7 +235,7 @@
             $("#grid").kendoTooltip({
                 filter: "td .validation-arrow",
                 position: "right",
-                callout:false,
+                callout: false,
                 show: function (e) {
                     e.sender.element.addClass("validation-tooltip");
                 },
@@ -327,7 +333,7 @@
                 //        var cell = row.find('td:eq(' + cellIndex +')');
                 //        kendoGrid.editCell(cell);
                 //    }, 50);
-                    
+
                 //}
                 //else {
                 //    currentEditItem = dataItem;
