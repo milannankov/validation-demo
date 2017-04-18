@@ -9,7 +9,7 @@ using System.Web.Mvc;
 namespace kendo_asp_mvc.Controllers
 {
     [RoutePrefix("person")]
-    public class PersonController : Controller
+    public partial class PersonController : Controller
     {
         private static List<PersonModel> models = new List<PersonModel>();
         private static int nextIndex = 1;
@@ -42,34 +42,6 @@ namespace kendo_asp_mvc.Controllers
             return this.Json(response, JsonRequestBehavior.AllowGet);
         }
 
-        public class ApiResponse
-        {
-            public bool Success
-            {
-                get;
-                private set;
-            }
-
-            public object Errors
-            {
-                get;
-                private set;
-            }
-
-            public object Result
-            {
-                get;
-                private set;
-            }
-            public ApiResponse(object result, object errors = null)
-            {
-                this.Success = errors == null;
-
-                this.Result = result;
-                this.Errors = errors;
-            }
-        }
-
         [Route("create")]
         [HttpPost]
         public JsonResult Create(PersonModel model)
@@ -80,6 +52,7 @@ namespace kendo_asp_mvc.Controllers
                 models.Add(model);
             }
 
+            // Can use MVC's DataSourceResult
             //var errors = this.ModelState.ToDictionary(k => k.Key, k => k.Value.Errors.Select(e => e.ErrorMessage));
             var errors = this.ModelState
                 .Where(kvp => kvp.Value.Errors.Any())

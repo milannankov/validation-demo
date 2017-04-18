@@ -3,35 +3,6 @@
     ViewBag.Title = "Grid";
 }
 
-
-<div id="commands">
-
-    <div class="form-group">
-        <div class="checkbox">
-            <label>
-                <input type="checkbox" id="toggleClickToEdit" checked> Click to edit
-            </label>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <div class="checkbox">
-            <label>
-                <input type="checkbox" id="toggleTabOnLastCell" checked> Tab on the last cell to commit
-            </label>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <div class="checkbox">
-            <label>
-                <input type="checkbox" id="toggleTabOnLastRow" checked> Tab on the last row to add new row
-            </label>
-        </div>
-    </div>
-
-</div>
-
 <div id="example">
     <div id="grid"></div>
 </div>
@@ -43,34 +14,8 @@
         var currentEditItem = null;
         var currentEditItemUpdated = false;
         var kendoGrid = null;
+        var gridShoulSkipRefresh = false;
         var errorStates = {};
-
-        function enableInCellEdit() {
-            var options = kendoGrid.getOptions();
-            options.editable.mode = "incell";
-            options.columns[options.columns.length - 1] = { command: ["destroy"], title: "&nbsp;", width: "250px" };
-
-            kendoGrid.setOptions(options);
-        };
-
-        function enableInlineEdit() {
-            var options = kendoGrid.getOptions();
-            options.editable.mode = "inline";
-            options.columns[options.columns.length - 1] = { command: ["edit", "destroy"], title: "&nbsp;", width: "250px" };
-
-            kendoGrid.setOptions(options);
-        };
-
-        $("#toggleClickToEdit").change(function () {
-
-            if (this.checked) {
-                enableInCellEdit();
-            }
-            else {
-                enableInlineEdit();
-            }
-
-        });
 
         $(document).ready(function () {
 
@@ -136,7 +81,6 @@
                 if (e.type === 'read') {
                     errorStates = {};
                     initUiids(e.response.Result);
-                    //disableGridRefreshes();
                 } else {
                     updateErrorState(e.response.Result.uiid, e.response.Errors);
                     clearValidationUi();
@@ -149,8 +93,6 @@
                     .removeClass('cell-invalid')
                     .removeAttr('data-error');
             };
-
-            var gridShoulSkipRefresh = false;
 
             function disableGridRefreshes() {
                 gridShoulSkipRefresh = true;
@@ -311,10 +253,9 @@
                 }
 
                 var isLastColumn = isOnLastColumn(e.target);
-                var isLastRow = isOnLastRow(e.target);
                 var hasChanges = kendoGrid.dataSource.hasChanges();
 
-                if (isTabOnLastCellEnabled() && isLastColumn && isEditing() && hasChanges) {
+                if (isLastColumn && isEditing() && hasChanges) {
                     kendoGrid.saveChanges();
                 }
             });
@@ -337,23 +278,8 @@
                 return isLastColumn;
             }
 
-            function isOnLastRow(target) {
-                var currentRowIndex = $(target).closest('tr').index();
-                var lastRowIndex = kendoGrid.dataSource.total() - 1;
-
-                return currentRowIndex === lastRowIndex;
-            }
-
             function isEditing() {
                 return $(kendoGrid.table).find('.k-grid-edit-row').length > 0;
-            }
-
-            function isTabOnLastCellEnabled() {
-                return $('#toggleTabOnLastCell').is(':checked');
-            }
-
-            function isTabOnLastRowEnabled() {
-                return $('#toggleTabOnLastRow').is(':checked');
             }
 
             function onRowSave(e) {
@@ -379,7 +305,6 @@
                     model.uiid = kendo.guid();
                 }
 
-                // Glitches with that
                 if (dataItem !== currentEditItem && currentEditItem != null && currentEditItemUpdated) {
                     currentEditItem = dataItem;
                     currentEditItemUpdated = false;
